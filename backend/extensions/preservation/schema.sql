@@ -19,3 +19,26 @@ CREATE TABLE IF NOT EXISTS audio_derivative_checks (
   CHECK ((stage='queued') = (review_by IS NULL)),
   CHECK ((stage='failed') = (cardinality(failed_rules) > 0))
 );
+-- 访问副本送检时登记取用的母版及校验值
+ALTER TABLE audio_derivative_checks
+  ADD COLUMN IF NOT EXISTS source_derivative bigint REFERENCES audio_derivative_checks(id),
+  ADD COLUMN IF NOT EXISTS source_digest text;
+ALTER TABLE audio_derivative_checks DROP CONSTRAINT IF EXISTS access_copy_source;
+ALTER TABLE audio_derivative_checks ADD CONSTRAINT access_copy_source CHECK (
+  (kind='access' AND source_derivative IS NOT NULL AND source_digest IS NOT NULL)
+  OR (kind='master' AND source_derivative IS NULL AND source_digest IS NULL)
+) NOT VALID;
+-- 归档包换包申请：一母版一访问副本整包切换，每卷至多一个现用包
+CREATE TABLE IF NOT EXISTS reel_archive_packages (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  reel text NOT NULL REFERENCES acetate_reels(code),
+  base_package bigint REFERENCES reel_archive_packages(id),
+  master bigint NOT NULL REFERENCES audio_derivative_checks(id),
+  access_copy bigint NOT NULL REFERENCES audio_derivative_checks(id),
+  requested_by text NOT NULL,
+  requested_at timestamptz NOT NULL DEFAULT now(),
+  stage text NOT NULL CHECK(stage IN ('current','replaced','rejected','superseded')),
+  conclusion text NOT NULL DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS one_current_package_per_reel
+  ON reel_archive_packages(reel) WHERE stage='current';

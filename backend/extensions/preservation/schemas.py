@@ -15,3 +15,11 @@ class Derivative(BaseModel):
     sample_rate: Literal[44100,48000,96000,192000]
     channels: Literal[1,2]
     clipped_frames: int = Field(ge=0,le=10000000)
+    source_derivative: int | None = Field(default=None,gt=0)
+    source_digest: Digest | None = None
+
+class PackageSwitch(BaseModel):
+    reel: str = Field(pattern=r"^[0-9A-Za-z-]{2,20}$")
+    master: int = Field(gt=0)
+    access_copy: int = Field(gt=0)
+    base_package: int | None = Field(default=None,gt=0)

@@ -13,8 +13,8 @@ export function wireForms(outlet, refresh, actions) {
       try {
         const values = Object.fromEntries(new FormData(form))
         const command = actions[form.dataset.operation](values, form)
-        await api(command.path, command.method ?? 'POST', command.body ?? values)
-        await refresh('已保存。')
+        const result = await api(command.path, command.method ?? 'POST', command.body ?? values)
+        await refresh(command.flash ? command.flash(result) : '已保存。')
       } catch (error) {
         notice(status, error.message, true)
       } finally {
